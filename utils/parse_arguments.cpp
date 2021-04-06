@@ -1,0 +1,30 @@
+#include "parse_arguments.h"
+
+void parseArgs(int argc, const char **argv, Args &args)
+{
+    for(int i = 0; i < argc; i++)
+    {
+        std::string arg = argv[i];
+        if(arg == "-dtype"){
+            args.dtype = argv[++i];
+        }else if(arg == "-flowmaps"){
+            for(; i + 1 < argc; ++i){
+                if(argv[i+1][0] == '-'){
+                    break;
+                }
+                args.flow_map_filenames.push_back(argv[++i]);
+            }
+        }
+    }
+}
+
+std::string getFileExt(const std::string& s)
+{
+
+       size_t i = s.rfind('.', s.length());
+          if (i != std::string::npos) {
+                    return(s.substr(i+1, s.length() - i));
+                       }
+
+             return("");
+}
