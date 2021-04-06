@@ -261,6 +261,16 @@ int main(int argc, const char **argv)
             ImGui::Render();
             if (widget.animation){
                 for(int i = 0; i < flowmaps.size(); i++){
+                    ImGui_ImplOpenGL3_NewFrame();
+                    ImGui_ImplGlfw_NewFrame();
+                    ImGui::NewFrame();
+                    if (ImGui::Begin("Control Panel")) {
+                        widget.draw();
+                    }
+                    ImGui::End();
+                    ImGui::Render();
+
+
                     widget.time_now = i;
                     std::cout << "flow map " << i << std::endl;
                     std::cout << "\n";
@@ -294,6 +304,7 @@ int main(int argc, const char **argv)
                             break;
                         }
                     }
+
                 }
                 widget.animation = false;
                 std::cout << "animation" << std::endl;
