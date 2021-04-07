@@ -22,19 +22,7 @@ void Widget::draw()
     }
 
     ImGui::Checkbox("Animation", &animation); 
-    ImGui::SameLine(100); 
-    ImGui::InputFloat("Time: ", &time_now);
-    if(time_now != pre_time_now){
-        animation_time_changed = true;
-    }else{
-        animation_time_changed = false;
-    }
 
-    if(animation_time_changed && lock.try_lock()){
-        // std::cout << "current time step " << currentTimeStep << " and pre time step " << preTimeStep << std::endl; 
-        pre_time_now = time_now;
-        lock.unlock();
-    }
 }
 
 bool Widget::changed(){

@@ -223,9 +223,16 @@ int main(int argc, const char **argv)
 
         glfwSetWindowUserPointer(window, app.get());
         glfwSetCursorPosCallback(window, cursorPosCallback);
+        bool animation_mode = false;
         while (!glfwWindowShouldClose(window))
         {
             app->isTimeSliderChanged = widget.changed();
+            std::cout << "app slider changed " << widget.changed() << std::endl;
+            if (widget.animation){
+                animation_mode = true;
+            }else{
+                animation_mode = false;
+            }
 
             if (app ->isCameraChanged) {
                 camera.setParam("position", app->camera.eyePos());
@@ -238,7 +245,7 @@ int main(int argc, const char **argv)
                 framebuffer.clear();
                 app ->isCameraChanged = false;
             }
-            if(app->isTimeSliderChanged){
+            if(!animation_mode && app->isTimeSliderChanged){
                 std::cout << widget.current_time << "\n";
                 sphereGeometry.setParam("sphere.position", ospray::cpp::CopiedData(flowmaps[widget.current_time].points));
                 sphereGeometry.commit();
@@ -249,6 +256,30 @@ int main(int argc, const char **argv)
                 framebuffer.clear();
                 app ->isTimeSliderChanged = false;
             }
+            if(animation_mode && !app->isTimeSliderChanged){
+                std::cout << "debug 1" << std::endl;
+                widget.current_time = 0;
+                widget.pre_time = -1;
+            }
+
+            if(animation_mode && (app->isTimeSliderChanged)){
+                std::cout << widget.current_time << "\n";
+                sphereGeometry.setParam("sphere.position", ospray::cpp::CopiedData(flowmaps[widget.current_time].points));
+                sphereGeometry.commit();
+                model.commit();
+                group.commit();
+                instance.commit();
+                world.commit();
+                framebuffer.clear();
+                if(widget.current_time < (flowmaps.size() - 1)){
+                    widget.current_time = widget.current_time + 1;
+                }else{
+                    widget.current_time = 0;
+                    widget.pre_time = 0;
+                }
+             
+            }
+            std::cout << "widget changed 1 " << widget.changed() << std::endl;
             // Start the Dear ImGui frame
             ImGui_ImplOpenGL3_NewFrame();
             ImGui_ImplGlfw_NewFrame();
@@ -259,82 +290,30 @@ int main(int argc, const char **argv)
             }
             ImGui::End();
             ImGui::Render();
-            if (widget.animation){
-                for(int i = 0; i < flowmaps.size(); i++){
-                    ImGui_ImplOpenGL3_NewFrame();
-                    ImGui_ImplGlfw_NewFrame();
-                    ImGui::NewFrame();
-                    if (ImGui::Begin("Control Panel")) {
-                        widget.draw();
-                    }
-                    ImGui::End();
-                    ImGui::Render();
-
-
-                    widget.time_now = i;
-                    std::cout << "flow map " << i << std::endl;
-                    std::cout << "\n";
-                    sphereGeometry.setParam("sphere.position", ospray::cpp::CopiedData(flowmaps[i].points));
-                    sphereGeometry.commit();
-                    model.commit();
-                    group.commit();
-                    instance.commit();
-                    world.commit();
-                    framebuffer.clear();
-                    // render one frame
-                    clock_t t0 = clock();
-                    float t = 0;
-                    while((t / CLOCKS_PER_SEC) < 3){
-                        framebuffer.renderFrame(renderer, camera, world);
-                        t = (float)(clock() - t0);
-                        std::cout << "t " << t / CLOCKS_PER_SEC<< std::endl;
-                        
-                        uint32_t *fb = (uint32_t *)framebuffer.map(OSP_FB_COLOR);
-
-                        glViewport(0, 0, window_size.x, window_size.y);
-                        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, window_size.x, window_size.y, GL_RGBA, GL_UNSIGNED_BYTE, fb);
-                        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-                        glUseProgram(display_render.program);
-                        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-                        framebuffer.unmap(fb);
-                        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-                        glfwSwapBuffers(window);
-                        glfwPollEvents();
-                        if (!widget.animation){
-                            break;
-                        }
-                    }
-
+            if (animation_mode){
+                clock_t t0 = clock();
+                float t = 0;
+                while((t / CLOCKS_PER_SEC) < 3){
+                    framebuffer.renderFrame(renderer, camera, world);
+                    t = (float)(clock() - t0);
                 }
-                widget.animation = false;
-                std::cout << "animation" << std::endl;
             }else{
-                // // Start the Dear ImGui frame
-                // ImGui_ImplOpenGL3_NewFrame();
-                // ImGui_ImplGlfw_NewFrame();
-                // ImGui::NewFrame();
-
-                // if (ImGui::Begin("Control Panel")) {
-                //     widget.draw();
-                // }
-                // ImGui::End();
-                // ImGui::Render();
-                // render one frame
-                widget.time_now = widget.current_time;
                 framebuffer.renderFrame(renderer, camera, world);
-                uint32_t *fb = (uint32_t *)framebuffer.map(OSP_FB_COLOR);
-
-                glViewport(0, 0, window_size.x, window_size.y);
-                glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, window_size.x, window_size.y, GL_RGBA, GL_UNSIGNED_BYTE, fb);
-                glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-                glUseProgram(display_render.program);
-                glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-
-                framebuffer.unmap(fb);
-                ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-                glfwSwapBuffers(window);
-                glfwPollEvents();
             }
+
+            uint32_t *fb = (uint32_t *)framebuffer.map(OSP_FB_COLOR);
+
+            glViewport(0, 0, window_size.x, window_size.y);
+            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, window_size.x, window_size.y, GL_RGBA, GL_UNSIGNED_BYTE, fb);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+            glUseProgram(display_render.program);
+            glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+            framebuffer.unmap(fb);
+            ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+            glfwSwapBuffers(window);
+            glfwPollEvents();
+            
         }
     }
     
@@ -350,3 +329,54 @@ int main(int argc, const char **argv)
 
     return 0;
 }
+
+// if (widget.animation){
+//                 for(int i = 0; i < flowmaps.size(); i++){
+//                     ImGui_ImplOpenGL3_NewFrame();
+//                     ImGui_ImplGlfw_NewFrame();
+//                     ImGui::NewFrame();
+//                     if (ImGui::Begin("Control Panel")) {
+//                         widget.draw();
+//                     }
+//                     ImGui::End();
+//                     ImGui::Render();
+
+//                     widget.time_now = i;
+//                     std::cout << "flow map " << i << std::endl;
+//                     std::cout << "\n";
+//                     sphereGeometry.setParam("sphere.position", ospray::cpp::CopiedData(flowmaps[i].points));
+//                     sphereGeometry.commit();
+//                     model.commit();
+//                     group.commit();
+//                     instance.commit();
+//                     world.commit();
+//                     framebuffer.clear();
+//                     // render one frame
+//                     clock_t t0 = clock();
+//                     float t = 0;
+//                     while((t / CLOCKS_PER_SEC) < 3){
+//                         if (!widget.animation){
+//                             break;
+//                         }
+//                         framebuffer.renderFrame(renderer, camera, world);
+//                         t = (float)(clock() - t0);
+//                         std::cout << "t " << t / CLOCKS_PER_SEC<< std::endl;
+                        
+//                         uint32_t *fb = (uint32_t *)framebuffer.map(OSP_FB_COLOR);
+
+//                         glViewport(0, 0, window_size.x, window_size.y);
+//                         glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, window_size.x, window_size.y, GL_RGBA, GL_UNSIGNED_BYTE, fb);
+//                         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+//                         glUseProgram(display_render.program);
+//                         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+//                         framebuffer.unmap(fb);
+//                         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+//                         glfwSwapBuffers(window);
+//                         glfwPollEvents();
+
+//                     }
+
+//                 }
+//                 widget.animation = false;
+//                 std::cout << "animation" << std::endl;
+//             }
